@@ -1,18 +1,12 @@
 #!/bin/bash
-# Pacdate v1.0.0 created by Joseph DiGiovanni (jdigiovanni78 at gmail dot com)
+# Pacdate v1.1.0 created by Joseph DiGiovanni (jdigiovanni78 at gmail dot com)
 
-PACDATE=""
-PACDATE_LIST=""
-PACDATE_DEPS=""
-
-# Function to display help/usage information
 function show_usage() {
   echo ""
   echo "Usage: $0 <YYYY/MM/DD> <package package2 ...>"
   echo ""
 }
 
-# Function to check the input date format is correct
 function is_valid_date_format() {
   local regex="^[0-9]{4}/(0[1-9]|1[0-2])/(0[1-9]|[1-2][0-9]|3[0-1])$"
 
@@ -23,17 +17,17 @@ function is_valid_date_format() {
   fi
 }
 
+function clean_whitespace() {
+    awk '{$1=$1};1'
+}
+
 if ! is_valid_date_format "$1"; then
   echo "Date is invalid: $1"
-else
-  PACDATE=$1
-  PACDATE_LIST="${*:2}"
-fi
-
-if [ -z $PACDATE ]; then
-  echo "No date option provided."
   show_usage
   exit 1
+else
+  PACDATE=$1
+  PACDATE_PKGLIST=${*:2 | clean_whitespace}
 fi
 
 echo "Packages will be updated to the archived version from $PACDATE."
@@ -52,29 +46,44 @@ fi
 
 echo " "
 
-if [ -z "$PACDATE_LIST" ]; then
+if [ -z "$PACDATE_PKGLIST" ]; then
   # Update all
-  sudo pacman -Syyuu
+  sudo pacman -Syyu
 else  
   # Update selected packages
-  sudo pacman -Syy $PACDATE_LIST
+  sudo pacman -Syy $PACDATE_PKGLIST
   
-  # Create dependency list
-  IFS=' ' read -ra PACKAGE_ARRAY <<< "$PACDATE_LIST"
+  # Get all dependencies for next run
+
+  # Make an array of input packages
+  IFS=' ' read -ra PACKAGE_ARRAY <<< "$PACDATE_PKGLIST"
+
+  # Loop through array of packages
   for CURRENT_PKG in "${PACKAGE_ARRAY[@]}"; do
-  PACDATE_DEPS="$PACDATE_DEPS $(pacman -Qi $CURRENT_PKG|grep "Depends On"|cut -d: -f2|awk '{$1=$1};1'|tr -s ' '|tr -d '\n')"
+    CURRENT_DEPS=$(pacman -Qi $CURRENT_PKG|grep "Depends On"|cut -d: -f2|tr -d '\n')
+    PACDATE_DEPS="$PACDATE_DEPS $CURRENT_DEPS"
   done
-  
+
+  # Clean up whitespace and deduplicate package names
+  PACDATE_DEPS=$(echo "$PACDATE_DEPS" | xargs -n1 | sort -u | xargs | clean_whitespace)
+
+  echo " "
+  echo "Dependency info:"
+  # Ask to rerun on dependencies
   if [ -n "$PACDATE_DEPS" ]; then
-    # List dependencies
     echo " "
-    echo "The downgraded packages have these dependencies:"
-    echo $PACDATE_DEPS
+    echo "Depends On : " $PACDATE_DEPS
     echo " "
-    read -p "Do you want to downgrade these as well? (y/N) " choice
+    read -p "Rerun on dependencies? (y/N) " choice
     if [[ "$choice" =~ ^[Yy]$ ]]; then
-      $0 "$PACDATE" "$PACDATE_DEPS"
+      PACDATE_NEXTRUN="$PACDATE_NEXTRUN $PACDATE_DEPS"
     fi
+  fi
+
+  echo " "
+  if [ -n "$PACDATE_NEXTRUN" ]; then
+    export PACDATE_DONE="$PACDATE_DONE"
+    $0 "$PACDATE" $(echo "$PACDATE_NEXTRUN" | clean_whitespace)
   fi
 fi
 
