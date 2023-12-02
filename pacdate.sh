@@ -46,16 +46,21 @@ else
   # Create new mirror list
   sudo sh -c "echo 'Server=https://archive.archlinux.org/repos/$PACDATE/\$repo/os/\$arch' > /etc/pacman.d/mirrorlist"
   echo "Done."
+  echo "Force Syncing package database..."
+  # Sync pacman database
+  sudo pacman -Syy > /dev/null
 fi
 
 echo " "
 
 if [ -z "$PACDATE_PKGLIST" ]; then
   # Update all
-  sudo pacman -Syyu
+  sudo pacman -Syu
 else  
   # Update selected packages
-  sudo pacman -Syy $PACDATE_PKGLIST
+  sudo pacman -Sy $PACDATE_PKGLIST
+  # Mark which packages were processed so they don't get updated again
+  PACDATE_DONE=$(echo "$PACDATE_DONE $PACDATE_PKGLIST" | clean_whitespace)
   
   # Get all dependencies for next run
 
