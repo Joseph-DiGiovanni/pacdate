@@ -31,7 +31,7 @@ else
   # Remove package names that have already been updated from input
   # Hyphens need to be converted to some non-standard character since sed doesn't support lookaround assertions
   PATTERN=$(echo "$PACDATE_DONE" | tr ' ' '|' | tr '-' '%')
-  PACDATE_PKGLIST=$(echo "$PACDATE_PKGLIST" | tr '-' '%' | sed -E "s/\b($PATTERN)b//g" | tr '%' '-')
+  PACDATE_PKGLIST=$(echo "$PACDATE_PKGLIST" | tr '-' '%' | sed -E "s/\b($PATTERN)\b//g" | tr '%' '-')
 fi
 
 echo "Packages will be updated to the archived version from $PACDATE."
