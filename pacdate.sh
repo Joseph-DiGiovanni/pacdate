@@ -28,6 +28,10 @@ if ! is_valid_date_format "$1"; then
 else
   PACDATE=$1
   PACDATE_PKGLIST=${*:2 | clean_whitespace}
+  # Remove package names that have already been updated from input
+  # Hyphens need to be converted to some non-standard character since sed doesn't support lookaround assertions
+  PATTERN=$(echo "$PACDATE_DONE" | tr ' ' '|' | tr '-' '%')
+  PACDATE_PKGLIST=$(echo "$PACDATE_PKGLIST" | tr '-' '%' | sed -E "s/\b($PATTERN)b//g" | tr '%' '-')
 fi
 
 echo "Packages will be updated to the archived version from $PACDATE."
@@ -61,15 +65,22 @@ else
   # Loop through array of packages
   for CURRENT_PKG in "${PACKAGE_ARRAY[@]}"; do
     CURRENT_DEPS=$(pacman -Qi $CURRENT_PKG|grep "Depends On"|cut -d: -f2|tr -d '\n')
+    CURRENT_REQUIRED=$(pacman -Qi $CURRENT_PKG|grep "Required By"|cut -d: -f2|tr -d '\n')
 
     # Add package dependencies together
     if [ "$CURRENT_DEPS" != " None" ]; then
       PACDATE_DEPS="$PACDATE_DEPS $CURRENT_DEPS"
     fi
+
+    # Add packages that require this package together
+    if [ "$CURRENT_REQUIRED" != " None" ]; then
+      PACDATE_REQUIRED="$PACDATE_REQUIRED $CURRENT_REQUIRED"
+    fi
   done
 
   # Clean up whitespace and deduplicate package names
   PACDATE_DEPS=$(echo "$PACDATE_DEPS" | xargs -n1 | sort -u | xargs | clean_whitespace)
+  PACDATE_REQUIRED=$(echo "$PACDATE_REQUIRED" | xargs -n1 | sort -u | xargs | clean_whitespace)
 
   echo " "
   echo "Dependency info:"
@@ -81,6 +92,17 @@ else
     read -p "Rerun on dependencies? (y/N) " choice
     if [[ "$choice" =~ ^[Yy]$ ]]; then
       PACDATE_NEXTRUN="$PACDATE_NEXTRUN $PACDATE_DEPS"
+    fi
+  fi
+
+  # Ask to rerun on packages that require the input packages
+  if [ -n "$PACDATE_REQUIRED" ]; then
+    echo " "
+    echo "Required By : " $PACDATE_REQUIRED
+    echo " "
+    read -p "Rerun on packages that require '$PACDATE_PKGLIST'? (y/N) " choice
+    if [[ "$choice" =~ ^[Yy]$ ]]; then
+      PACDATE_NEXTRUN="$PACDATE_NEXTRUN $PACDATE_REQUIRED"
     fi
   fi
 
