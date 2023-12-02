@@ -61,7 +61,11 @@ else
   # Loop through array of packages
   for CURRENT_PKG in "${PACKAGE_ARRAY[@]}"; do
     CURRENT_DEPS=$(pacman -Qi $CURRENT_PKG|grep "Depends On"|cut -d: -f2|tr -d '\n')
-    PACDATE_DEPS="$PACDATE_DEPS $CURRENT_DEPS"
+
+    # Add package dependencies together
+    if [ "$CURRENT_DEPS" != " None" ]; then
+      PACDATE_DEPS="$PACDATE_DEPS $CURRENT_DEPS"
+    fi
   done
 
   # Clean up whitespace and deduplicate package names
