@@ -51,7 +51,7 @@ echo " "
 
 if [ -z "$PACDATE_PKGLIST" ]; then
   # Update all
-  sudo pacman -Syu
+  sudo pacman -Syuu
 else  
   # Update selected packages
   sudo pacman -Sy $PACDATE_PKGLIST
