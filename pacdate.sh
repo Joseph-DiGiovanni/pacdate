@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pacdate v1.1.0 created by Joseph DiGiovanni (jdigiovanni78 at gmail dot com)
+# Pacdate v1.1.1 created by Joseph DiGiovanni (jdigiovanni78 at gmail dot com)
 
 function show_usage() {
   echo ""
@@ -17,17 +17,13 @@ function is_valid_date_format() {
   fi
 }
 
-function clean_whitespace() {
-    awk '{$1=$1};1'
-}
-
 if ! is_valid_date_format "$1"; then
   echo "Date is invalid: $1"
   show_usage
   exit 1
 else
   PACDATE=$1
-  PACDATE_PKGLIST=${*:2 | clean_whitespace}
+  PACDATE_PKGLIST=${*:2 | xargs}
   # Remove package names that have already been updated from input
   # Hyphens need to be converted to some non-standard character since sed doesn't support lookaround assertions
   PATTERN=$(echo "$PACDATE_DONE" | tr ' ' '|' | tr '-' '%')
@@ -60,7 +56,7 @@ else
   # Update selected packages
   sudo pacman -Sy $PACDATE_PKGLIST
   # Mark which packages were processed so they don't get updated again
-  PACDATE_DONE=$(echo "$PACDATE_DONE $PACDATE_PKGLIST" | clean_whitespace)
+  PACDATE_DONE="$PACDATE_DONE $PACDATE_PKGLIST"
   
   # Get all dependencies for next run
 
@@ -84,8 +80,8 @@ else
   done
 
   # Clean up whitespace and deduplicate package names
-  PACDATE_DEPS=$(echo "$PACDATE_DEPS" | xargs -n1 | sort -u | xargs | clean_whitespace)
-  PACDATE_REQUIRED=$(echo "$PACDATE_REQUIRED" | xargs -n1 | sort -u | xargs | clean_whitespace)
+  PACDATE_DEPS=$(echo "$PACDATE_DEPS" | xargs -n1 | sort -u)
+  PACDATE_REQUIRED=$(echo "$PACDATE_REQUIRED" | xargs -n1 | sort -u)
 
   echo " "
   echo "Dependency info:"
@@ -114,7 +110,7 @@ else
   echo " "
   if [ -n "$PACDATE_NEXTRUN" ]; then
     export PACDATE_DONE="$PACDATE_DONE"
-    $0 "$PACDATE" $(echo "$PACDATE_NEXTRUN" | clean_whitespace)
+    $0 "$PACDATE" "$PACDATE_NEXTRUN"
   fi
 fi
 
